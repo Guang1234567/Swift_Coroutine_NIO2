@@ -1,0 +1,52 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "RxSwift",
+        "repositoryURL": "https://github.com/ReactiveX/RxSwift.git",
+        "state": {
+          "branch": null,
+          "revision": "002d325b0bdee94e7882e1114af5ff4fe1e96afa",
+          "version": "5.1.1"
+        }
+      },
+      {
+        "package": "swift-nio",
+        "repositoryURL": "https://github.com/apple/swift-nio.git",
+        "state": {
+          "branch": null,
+          "revision": "8a865bd15e69526cbdfcfd7c47698eb20b2ba951",
+          "version": "2.19.0"
+        }
+      },
+      {
+        "package": "Swift_Atomics",
+        "repositoryURL": "https://github.com/Guang1234567/Swift_Atomics.git",
+        "state": {
+          "branch": "master",
+          "revision": "32a8c89a132c5d6d4330002dc65af2953306d3b6",
+          "version": null
+        }
+      },
+      {
+        "package": "Swift_Boost_Context",
+        "repositoryURL": "https://github.com/Guang1234567/Swift_Boost_Context.git",
+        "state": {
+          "branch": "master",
+          "revision": "cdc7565f77c5308db073036d0e03277dcb0f9e1b",
+          "version": null
+        }
+      },
+      {
+        "package": "Swift_Express",
+        "repositoryURL": "https://github.com/Guang1234567/Swift_Express.git",
+        "state": {
+          "branch": "base_on_swift_nio2",
+          "revision": "c65e0ce177bf16d48315ceac672dbb788412a60b",
+          "version": null
+        }
+      }
+    ]
+  },
+  "version": 1
+}
