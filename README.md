@@ -63,7 +63,7 @@ browse
 
 ## vapor/vapor
 
-[vapor4_auth_template](https://github.com/Guang1234567/vapor4_auth_template/blob/25ba379b2297d8e1125911be88f82013f0e05f42/Sources/App/Controllers/UserController.swift#L79-L102)
+[vapor4_auth_template](https://github.com/Guang1234567/vapor4_auth_template/blob/e8c33a489f3661e22fc9cf3faaa6920f4527fad0/Sources/App/Controllers/UserController.swift#L80-L135)
 
 - `EventLoopFuture` chain async code style
 
