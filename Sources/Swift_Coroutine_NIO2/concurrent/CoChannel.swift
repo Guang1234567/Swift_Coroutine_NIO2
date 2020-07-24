@@ -1,8 +1,16 @@
 import Foundation
 import SwiftAtomics
 
-public enum CoChannelError: Error {
+enum CoChannelError: Error, CustomStringConvertible, CustomDebugStringConvertible {
     case closed
+
+    public var description: String {
+        switch self {
+            case .closed:
+                return "CoChannelError.close"
+        }
+    }
+    public var debugDescription: String { description }
 }
 
 public class CoChannel<E>: CustomDebugStringConvertible, CustomStringConvertible {
@@ -56,10 +64,11 @@ public class CoChannel<E>: CustomDebugStringConvertible, CustomStringConvertible
         _buffer.append(e)
     }
 
-    func _receive(_ co: Coroutine) throws -> E {
+    private func _receive(_ co: Coroutine) throws -> E {
         try _semMutex.wait(co)
         if self.isClosed()
-           && _buffer.isEmpty {
+           && _semEmpty.count() <= 0
+                /*&& _buffer.isEmpty*/ {
             //print("\(co) receive  close")
             defer {
                 _semMutex.signal()
@@ -83,13 +92,16 @@ public class CoChannel<E>: CustomDebugStringConvertible, CustomStringConvertible
 
     public func receive(_ co: Coroutine) throws -> AnyIterator<E> {
         return AnyIterator { [unowned self] in
-            return try? self._receive(co)
+            try? self._receive(co)
         }
     }
 
-    public func close() -> Void {
-        if _isClosed.CAS(current: false, future: true) {
+    @discardableResult
+    public func close() -> Bool {
+        let r = _isClosed.CAS(current: false, future: true)
+        if r {
         }
+        return r
     }
 
     public func isClosed() -> Bool {

@@ -156,7 +156,7 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
                 _eventLoop.execute(self.makeResumer(bctx))
             case .YIELD_UNTIL(let onJumpBack):
                 triggerStateChangedEvent(.YIELDED)
-                onJumpBack.subscribe(onCompleted: {
+                onJumpBack.subscribe(onCompleted: { [unowned self] in
                               //print("\(self)  --  YIELD_UNTIL2")
                               self._eventLoop.execute(self.makeResumer(bctx))
                           })
