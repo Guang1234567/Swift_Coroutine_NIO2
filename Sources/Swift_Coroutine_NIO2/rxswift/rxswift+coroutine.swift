@@ -23,7 +23,7 @@ extension ObservableType {
     public static func coroutineCreate(
             capacity: Int = 1,
             eventLoop: EventLoop,
-            produceScope: @escaping (RxCoEventProducer<Element>) throws -> Void
+            produceScope: @escaping (Coroutine, RxCoEventProducer<Element>) throws -> Void
     ) -> Observable<Element> {
 
         return Observable<Element>.create { (observer) -> Disposable in
@@ -47,7 +47,7 @@ extension ObservableType {
 
             let coProducer: CoJob = CoLauncher.launch(name: "", eventLoop: eventLoop) { (co: Coroutine) throws -> Void in
                 do {
-                    try produceScope(RxCoEventProducer(co, channel))
+                    try produceScope(co, RxCoEventProducer(co, channel))
                     try channel.send(co, .completed)
                 } catch {
                     try channel.send(co, .error(error))
