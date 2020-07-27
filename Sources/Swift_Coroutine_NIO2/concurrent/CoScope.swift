@@ -32,13 +32,32 @@ open class CoScope {
 }
 
 extension CoScope {
+    func launch<T>(
+            name: String = "",
+            eventLoop: EventLoop,
+            scheduler: CoroutineScheduler,
+            _ task: @escaping CoroutineScopeFn<T>
+    ) -> CoJob {
+        let coJob = CoLauncher.launch(name: name, eventLoop: eventLoop, scheduler: scheduler, task)
+        _coJobs.append(coJob)
+        return coJob
+    }
+
     public func launch<T>(
             name: String = "",
             eventLoop: EventLoop,
+            scheduler: EventLoop,
             _ task: @escaping CoroutineScopeFn<T>
     ) -> CoJob {
-        let coJob = CoLauncher.launch(name: name, eventLoop: eventLoop, task)
-        _coJobs.append(coJob)
-        return coJob
+        launch(name: name, eventLoop: eventLoop, scheduler: EventLoopScheduler(scheduler), task)
+    }
+
+    public func launch<T>(
+            name: String = "",
+            eventLoop: EventLoop,
+            scheduler: NIOThreadPool,
+            _ task: @escaping CoroutineScopeFn<T>
+    ) -> CoJob {
+        launch(name: name, eventLoop: eventLoop, scheduler: NIOThreadPoolScheduler(eventLoop, scheduler), task)
     }
 }

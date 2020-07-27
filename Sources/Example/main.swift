@@ -25,7 +25,7 @@ app.get("/hello") { req, res, _ in
 
     let eventLoopOfRequest = req._channel.eventLoop
 
-    EventLoopFuture<Void>.coroutine(eventLoopOfRequest) { co in
+    EventLoopFuture<Void>.coroutine(eventLoop: eventLoopOfRequest, scheduler: eventLoopOfRequest) { co in
         print("workflow - before")
 
         print("coDelay - start \(Thread.current)")
@@ -39,6 +39,8 @@ app.get("/hello") { req, res, _ in
         // switch to IO thread for some expensive work!
         // -----------------------------------------------
         try co.continueOn(threadPool)
+        print("co.continueOn(threadPool) - Thread.current - \(Thread.current)")
+        try co.yield()
         print("co.continueOn(threadPool) - Thread.current - \(Thread.current)")
 
         // remember switch back to request's eventLoop for `Response # send`,

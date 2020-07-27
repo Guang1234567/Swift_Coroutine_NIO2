@@ -20,16 +20,17 @@ public struct RxCoEventProducer<E> {
 
 extension ObservableType {
 
-    public static func coroutineCreate(
+    static func coroutineCreate(
             capacity: Int = 1,
             eventLoop: EventLoop,
+            scheduler: CoroutineScheduler,
             produceScope: @escaping (Coroutine, RxCoEventProducer<Element>) throws -> Void
     ) -> Observable<Element> {
 
         return Observable<Element>.create { (observer) -> Disposable in
             let channel = CoChannel<Event<Element>>(name: "", capacity: capacity)
 
-            let coConsumer = CoLauncher.launch(name: "", eventLoop: eventLoop) { (co: Coroutine) throws -> Void in
+            let coConsumer = CoLauncher.launch(name: "", eventLoop: eventLoop, scheduler: scheduler) { (co: Coroutine) throws -> Void in
                 for event in try channel.receive(co) {
                     switch event {
                         case .next:
@@ -45,7 +46,7 @@ extension ObservableType {
                 }
             }
 
-            let coProducer: CoJob = CoLauncher.launch(name: "", eventLoop: eventLoop) { (co: Coroutine) throws -> Void in
+            let coProducer: CoJob = CoLauncher.launch(name: "", eventLoop: eventLoop, scheduler: scheduler) { (co: Coroutine) throws -> Void in
                 do {
                     try produceScope(co, RxCoEventProducer(co, channel))
                     try channel.send(co, .completed)
@@ -60,5 +61,23 @@ extension ObservableType {
                 }
             }
         }
+    }
+
+    public static func coroutineCreate(
+            capacity: Int = 1,
+            eventLoop: EventLoop,
+            scheduler: EventLoop,
+            produceScope: @escaping (Coroutine, RxCoEventProducer<Element>) throws -> Void
+    ) -> Observable<Element> {
+        coroutineCreate(capacity: capacity, eventLoop: eventLoop, scheduler: EventLoopScheduler(scheduler), produceScope: produceScope)
+    }
+
+    public static func coroutineCreate(
+            capacity: Int = 1,
+            eventLoop: EventLoop,
+            scheduler: NIOThreadPool,
+            produceScope: @escaping (Coroutine, RxCoEventProducer<Element>) throws -> Void
+    ) -> Observable<Element> {
+        coroutineCreate(capacity: capacity, eventLoop: eventLoop, scheduler: NIOThreadPoolScheduler(eventLoop, scheduler), produceScope: produceScope)
     }
 }

@@ -10,11 +10,11 @@ struct Swift_Coroutine_NIO2 {
     var text = "Hello, World!"
 }
 
-public extension EventLoopFuture {
+extension EventLoopFuture {
 
-    public static func coroutine(_ eventLoop: EventLoop, _ body: @escaping (Coroutine) throws -> Value) -> EventLoopFuture<Value> {
+    static func coroutine(eventLoop: EventLoop, scheduler: CoroutineScheduler, _ body: @escaping (Coroutine) throws -> Value) -> EventLoopFuture<Value> {
         let promise = eventLoop.makePromise(of: Value.self)
-        let _ = CoLauncher.launch(name: "EventLoopFuture#Coroutine", eventLoop: eventLoop) {
+        let _ = CoLauncher.launch(name: "EventLoopFuture#Coroutine", eventLoop: eventLoop, scheduler: scheduler) {
             (co: Coroutine) throws -> Void in
             do {
                 try promise.succeed(body(co))
@@ -23,6 +23,15 @@ public extension EventLoopFuture {
             }
         }
         return promise.futureResult
+    }
+
+    
+    public static func coroutine(eventLoop: EventLoop, scheduler: EventLoop, _ body: @escaping (Coroutine) throws -> Value) -> EventLoopFuture<Value> {
+        coroutine(eventLoop: eventLoop, scheduler: EventLoopScheduler(scheduler), body)
+    }
+
+    public static func coroutine(eventLoop: EventLoop, scheduler: NIOThreadPool, _ body: @escaping (Coroutine) throws -> Value) -> EventLoopFuture<Value> {
+        coroutine(eventLoop: eventLoop, scheduler: NIOThreadPoolScheduler(eventLoop, scheduler), body)
     }
 
     public func await(file: StaticString = #file,

@@ -58,9 +58,9 @@ public protocol Coroutine {
 
     func delay(_ timeInterval: TimeAmount) throws -> Void
 
-    func continueOn(_ nioThreadPool: NIOThreadPool) throws -> Void
+    func continueOn(_ scheduler: NIOThreadPool) throws -> Void
 
-    func continueOn(_ eventLoop: EventLoop) throws -> Void
+    func continueOn(_ scheduler: EventLoop) throws -> Void
 
 }
 
@@ -68,8 +68,7 @@ enum CoroutineTransfer<T> {
     case YIELD
     case YIELD_UNTIL(Completable)
     case DELAY(TimeAmount)
-    case CONTINUE_ON_NIOTHREADPOOL(NIOThreadPool)
-    case CONTINUE_ON_EVENTLOOP(EventLoop)
+    case CONTINUE_ON_SCHEDULER(CoroutineScheduler)
     case EXIT(Result<T, Error>)
 }
 
@@ -82,6 +81,8 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
     var _yieldCtx: BoostContext?
 
     var _eventLoop: EventLoop
+
+    var _scheduler: CoroutineScheduler
 
     let _task: CoroutineScopeFn<T>
 
@@ -108,12 +109,14 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
     init(
             _ name: String,
             _ eventLoop: EventLoop,
+            _ scheduler: CoroutineScheduler,
             _ task: @escaping CoroutineScopeFn<T>
     ) {
         _name = name
         _onStateChanged = AsyncSubject()
         _yieldCtx = nil
         _eventLoop = eventLoop
+        _scheduler = scheduler
         _task = task
         _currentState = AtomicInt()
         _currentState.initialize(CoroutineState.INITED.rawValue)
@@ -146,30 +149,28 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
 
     func start() -> Void {
         let bctx: BoostContext = _originCtx
-        _eventLoop.execute(self.makeResumer(bctx))
+        _scheduler.execute(self.makeResumer(bctx))
     }
 
     func resume(_ bctx: BoostContext, ctf: CoroutineTransfer<T>) -> Void {
         switch ctf {
             case .YIELD:
+                _scheduler.execute(self.makeResumer(bctx))
                 triggerStateChangedEvent(.YIELDED)
-                _eventLoop.execute(self.makeResumer(bctx))
             case .YIELD_UNTIL(let onJumpBack):
-                triggerStateChangedEvent(.YIELDED)
                 onJumpBack.subscribe(onCompleted: { [unowned self] in
                               //print("\(self)  --  YIELD_UNTIL2")
-                              self._eventLoop.execute(self.makeResumer(bctx))
+                              self._scheduler.execute(self.makeResumer(bctx))
                           })
                           .disposed(by: _disposeBag)
+                triggerStateChangedEvent(.YIELDED)
             case .DELAY(let timeInterval):
+                _scheduler.scheduleTask(deadline: .now() + timeInterval, self.makeResumer(bctx))
                 triggerStateChangedEvent(.YIELDED)
-                _eventLoop.scheduleTask(deadline: .now() + timeInterval, self.makeResumer(bctx))
-            case .CONTINUE_ON_NIOTHREADPOOL(let nioThreadPool):
+            case .CONTINUE_ON_SCHEDULER(let scheduler):
+                _scheduler = scheduler
+                scheduler.execute(self.makeResumer(bctx))
                 triggerStateChangedEvent(.YIELDED)
-                nioThreadPool.runIfActive(eventLoop: _eventLoop, self.makeResumer(bctx))
-            case .CONTINUE_ON_EVENTLOOP(let eventLoop):
-                triggerStateChangedEvent(.YIELDED)
-                eventLoop.execute(self.makeResumer(bctx))
             case .EXIT(let result):
                 _currentState.store(CoroutineState.EXITED.rawValue)
                 triggerStateChangedEvent(.EXITED)
@@ -205,12 +206,26 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
         try _yield(CoroutineTransfer.DELAY(timeInterval))
     }
 
-    func continueOn(_ nioThreadPool: NIOThreadPool) throws {
-        try _yield(CoroutineTransfer.CONTINUE_ON_NIOTHREADPOOL(nioThreadPool))
+    func continueOn(_ scheduler: NIOThreadPool) throws -> Void {
+        let sch = NIOThreadPoolScheduler(_eventLoop, scheduler)
+        if let s = _scheduler as? NIOThreadPoolScheduler {
+            if s != sch {
+                try _yield(CoroutineTransfer.CONTINUE_ON_SCHEDULER(sch))
+            }
+        } else {
+            try _yield(CoroutineTransfer.CONTINUE_ON_SCHEDULER(sch))
+        }
     }
 
-    func continueOn(_ eventLoop: EventLoop) throws {
-        try _yield(CoroutineTransfer.CONTINUE_ON_EVENTLOOP(eventLoop))
+    func continueOn(_ scheduler: EventLoop) throws -> Void {
+        let sch = EventLoopScheduler(scheduler)
+        if let s = _scheduler as? EventLoopScheduler {
+            if s != sch {
+                try _yield(CoroutineTransfer.CONTINUE_ON_SCHEDULER(sch))
+            }
+        } else {
+            try _yield(CoroutineTransfer.CONTINUE_ON_SCHEDULER(sch))
+        }
     }
 
     func _yield(_ ctf: CoroutineTransfer<T>) throws -> Void {
@@ -249,14 +264,33 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
 
 public class CoLauncher {
 
+    static func launch<T>(
+            name: String = "",
+            eventLoop: EventLoop,
+            scheduler: CoroutineScheduler,
+            _ task: @escaping CoroutineScopeFn<T>
+    ) -> CoJob {
+        let co: CoroutineImpl = CoroutineImpl<T>(name, eventLoop, scheduler, task)
+        co.start()
+        return CoJob(co)
+    }
+
     public static func launch<T>(
             name: String = "",
             eventLoop: EventLoop,
+            scheduler: EventLoop,
             _ task: @escaping CoroutineScopeFn<T>
     ) -> CoJob {
-        let co: CoroutineImpl = CoroutineImpl<T>(name, eventLoop, task)
-        co.start()
-        return CoJob(co)
+        CoLauncher.launch(name: name, eventLoop: eventLoop, scheduler: EventLoopScheduler(scheduler), task)
+    }
+
+    public static func launch<T>(
+            name: String = "",
+            eventLoop: EventLoop,
+            scheduler: NIOThreadPool,
+            _ task: @escaping CoroutineScopeFn<T>
+    ) -> CoJob {
+        CoLauncher.launch(name: name, eventLoop: eventLoop, scheduler: NIOThreadPoolScheduler(eventLoop, scheduler), task)
     }
 
 }
