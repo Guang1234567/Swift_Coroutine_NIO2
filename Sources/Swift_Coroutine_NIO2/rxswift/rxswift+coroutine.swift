@@ -55,7 +55,7 @@ extension ObservableType {
             }
 
             return Disposables.create {
-                if channel.isClosed() {
+                if !channel.isClosed() {
                     channel.close()
                 }
             }

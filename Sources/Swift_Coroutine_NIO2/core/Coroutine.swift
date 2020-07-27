@@ -102,7 +102,7 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
     deinit {
         _originCtx = nil
         _yieldCtx = nil
-        print("CoroutineImpl deinit : _name = \(_name)")
+        //print("CoroutineImpl deinit : _name = \(_name)")
     }
 
     init(
