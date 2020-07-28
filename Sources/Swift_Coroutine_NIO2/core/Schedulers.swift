@@ -6,7 +6,7 @@ protocol CoroutineScheduler {
     func execute(_ task: @escaping () -> Void) -> Void
 
     @discardableResult
-    func scheduleTask(deadline: NIODeadline, _ task: @escaping () throws -> Void) -> Scheduled<Void>
+    func scheduleTask(deadline: NIODeadline, _ task: @escaping () -> Void) -> Void
 
 }
 
@@ -20,7 +20,7 @@ struct EventLoopScheduler: CoroutineScheduler, Equatable {
         _eventLoop.execute(task)
     }
 
-    public func scheduleTask(deadline: NIODeadline, _ task: @escaping () throws -> Void) -> Scheduled<Void> {
+    public func scheduleTask(deadline: NIODeadline, _ task: @escaping () -> Void) -> Void {
         _eventLoop.scheduleTask(deadline: deadline, task)
     }
 
@@ -51,7 +51,7 @@ struct NIOThreadPoolScheduler: CoroutineScheduler, Equatable {
         _nioThreadPool.runIfActive(eventLoop: _eventLoop, task)
     }
 
-    public func scheduleTask(deadline: NIODeadline, _ task: @escaping () throws -> Void) -> Scheduled<Void> {
+    public func scheduleTask(deadline: NIODeadline, _ task: @escaping () -> Void) -> Void {
         _eventLoop.scheduleTask(deadline: deadline) {
             self._nioThreadPool.runIfActive(eventLoop: self._eventLoop, task)
         }
@@ -66,6 +66,46 @@ struct NIOThreadPoolScheduler: CoroutineScheduler, Equatable {
             return false
         }
 
+        if type(of: lhs) != type(of: rhs) {
+            return false
+        }
+
+        return true
+    }
+}
+
+struct DispatchQueueScheduler: CoroutineScheduler, Equatable {
+
+    private let _dispatchQueue: DispatchQueue
+
+    private let _qos: DispatchQoS
+
+    private let _flags: DispatchWorkItemFlags
+
+    public init(_ dispatchQueue: DispatchQueue, qos: DispatchQoS = .unspecified, flags: DispatchWorkItemFlags = []) {
+        _dispatchQueue = dispatchQueue
+        _qos = qos
+        _flags = flags
+    }
+
+    public func execute(_ task: @escaping () -> Void) -> Void {
+        _dispatchQueue.async(execute: task)
+    }
+
+    public func scheduleTask(deadline: NIODeadline, _ task: @escaping () -> Void) -> Void {
+        _dispatchQueue.asyncAfter(deadline: DispatchTime(uptimeNanoseconds: deadline.uptimeNanoseconds), qos: _qos, flags: _flags, execute: task)
+    }
+
+    static func ==(lhs: DispatchQueueScheduler, rhs: DispatchQueueScheduler) -> Bool {
+        if lhs._dispatchQueue != rhs._dispatchQueue {
+            return false
+        }
+        if lhs._qos != rhs._qos {
+            return false
+        }
+        if lhs._flags != rhs._flags {
+            return false
+        }
         if type(of: lhs) != type(of: rhs) {
             return false
         }

@@ -62,6 +62,8 @@ public protocol Coroutine {
 
     func continueOn(_ scheduler: EventLoop) throws -> Void
 
+    func continueOn(_ scheduler: DispatchQueue) throws -> Void
+
 }
 
 enum CoroutineTransfer<T> {
@@ -220,6 +222,17 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
     func continueOn(_ scheduler: EventLoop) throws -> Void {
         let sch = EventLoopScheduler(scheduler)
         if let s = _scheduler as? EventLoopScheduler {
+            if s != sch {
+                try _yield(CoroutineTransfer.CONTINUE_ON_SCHEDULER(sch))
+            }
+        } else {
+            try _yield(CoroutineTransfer.CONTINUE_ON_SCHEDULER(sch))
+        }
+    }
+
+    func continueOn(_ scheduler: DispatchQueue) throws -> Void {
+        let sch = DispatchQueueScheduler(scheduler)
+        if let s = _scheduler as? DispatchQueueScheduler {
             if s != sch {
                 try _yield(CoroutineTransfer.CONTINUE_ON_SCHEDULER(sch))
             }

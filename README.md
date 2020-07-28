@@ -2,7 +2,7 @@
 
 The other `Swift Coroutine` library that base on [apple/swift-nio](https://github.com/apple/swift-nio).
 
-Also see:
+Also glance over the brother project to get more info:
 
 [Guang1234567/Swift_Coroutine](https://github.com/Guang1234567/Swift_Coroutine) which base on `GCD`
 
@@ -21,9 +21,11 @@ This library can be used in some `web framework` base on [apple/swift-nio](https
 
 ```swift
 app.get("/hello") { req, res, _ in
+    //res.send("Hello")
+
     let eventLoopOfRequest = req._channel.eventLoop
 
-    EventLoopFuture<Void>.coroutine(eventLoopOfRequest) { (co) in
+    EventLoopFuture<Void>.coroutine(eventLoop: eventLoopOfRequest, scheduler: eventLoopOfRequest) { co in
         print("workflow - before")
 
         print("coDelay - start \(Thread.current)")
@@ -36,8 +38,10 @@ app.get("/hello") { req, res, _ in
 
         // switch to IO thread for some expensive work!
         // -----------------------------------------------
-        try co.continueOn(threadPool)
+        try co.continueOn(threadPool) // change scheduler from `eventLoopOfRequest` to `ioThreadPool`
         print("co.continueOn(threadPool) - Thread.current - \(Thread.current)")
+        try co.yield()
+        print("co.continueOn(threadPool) after co.yield() - Thread.current - \(Thread.current)")
 
         // remember switch back to request's eventLoop for `Response # send`,
         // keep in mind that `Request` and `Response` must be running in the same eventloop to ensure the correctness of the timing sequence
@@ -52,12 +56,25 @@ app.get("/hello") { req, res, _ in
 }
 ```
 
-
-
 browse
 
 ```bash
     http://localhost:1337/hello
+```
+
+**output**
+
+```ruby
+Server running on: [IPv6]::1/::1:1337
+GET: /hello
+workflow - before
+coDelay - start <NSThread: 0x7fc008a0a8e0>{number = 2, name = (null)}
+coDelay - end <NSThread: 0x7fc008a0a8e0>{number = 2, name = (null)}  in 2005.2579641342163 ms
+co.delay - Thread.current - <NSThread: 0x7fc008a0a8e0>{number = 2, name = (null)}
+co.continueOn(threadPool) - Thread.current - <NSThread: 0x7fc007c16b60>{number = 3, name = (null)}
+co.continueOn(threadPool) after co.yield() - Thread.current - <NSThread: 0x7fc007e07e60>{number = 4, name = (null)}
+co.continueOn(eventLoop) - Thread.current - <NSThread: 0x7fc008a0a8e0>{number = 2, name = (null)}
+workflow - end
 ```
 
 
@@ -106,8 +123,9 @@ func login(req: Request) throws -> EventLoopFuture<UserToken> {
 
         let eventLoop = req.eventLoop
         let ioThreadPool = req.application.threadPool
-        return EventLoopFuture<UserToken>.coroutine(eventLoop) { co in
+        return EventLoopFuture<UserToken>.coroutine(eventLoop: eventLoop, scheduler: eventLoop) { co in
 
+            // change scheduler from `eventLoop` to `ioThreadPool`
             try co.continueOn(ioThreadPool)
 
             let token = try user.generateToken()
@@ -137,7 +155,7 @@ More Human readable !
 1. Create a `Coroutine`
 
 ```swift
-EventLoopFuture<UserToken>.coroutine(eventLoop) { co in
+EventLoopFuture<UserToken>.coroutine(eventLoop: eventLoop, scheduler: eventLoop) { co in
     // other code ...
 }
 ```
@@ -148,6 +166,8 @@ EventLoopFuture<UserToken>.coroutine(eventLoop) { co in
 
 let eventLoop = req.eventLoop
 let ioThreadPool = req.application.threadPool
+let globalDispatchQueue = DispatchQueue.global()
+let customQueue = DispatchQueue(label: "custom_queue", attributes: .concurrent)
 
 // switch to io thread for some expensive work
 // ----------- 
@@ -159,9 +179,18 @@ try co.continueOn(ioThreadPool)
 // ----------- 
 try co.continueOn(eventLoop)
 
+
+// switch back to the GCD's global queue
+// ----------- 
+try co.continueOn(globalDispatchQueue)
+
+// switch back to the GCD's custom queue
+// ----------- 
+try co.continueOn(customQueue)
+
 ```
 
-3. Obtain `EventLoopFuture`'s result in **Non-Blocking** way
+3. Obtain `EventLoopFuture`'s result in a **Non-Blocking** way
 
 ```swift
 

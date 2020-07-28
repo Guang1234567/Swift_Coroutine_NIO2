@@ -41,7 +41,7 @@ app.get("/hello") { req, res, _ in
         try co.continueOn(threadPool)
         print("co.continueOn(threadPool) - Thread.current - \(Thread.current)")
         try co.yield()
-        print("co.continueOn(threadPool) - Thread.current - \(Thread.current)")
+        print("co.continueOn(threadPool) after co.yield() - Thread.current - \(Thread.current)")
 
         // remember switch back to request's eventLoop for `Response # send`,
         // keep in mind that `Request` and `Response` must be running in the same eventloop to ensure the correctness of the timing sequence
