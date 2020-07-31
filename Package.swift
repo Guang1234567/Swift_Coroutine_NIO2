@@ -17,10 +17,10 @@ let package = Package(
         dependencies: [
             // Dependencies declare other packages that this package depends on.
             // .package(url: /* package url */, from: "1.0.0"),
-            .package(url: "https://github.com/apple/swift-nio.git", from: "2.0.0"),
-            .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "5.0.0"),
-            .package(url: "https://github.com/Guang1234567/Swift_Boost_Context.git", .branch("master")),
-            .package(url: "https://github.com/Guang1234567/Swift_Atomics.git", .branch("master")),
+            .package(url: "https://gitee.com/my_mirrors/swift-nio.git", from: "2.0.0"),
+            .package(url: "https://gitee.com/my_mirrors/RxSwift.git", from: "5.0.0"),
+            .package(url: "https://gitee.com/my_mirrors/Swift_Boost_Context.git", .branch("master")),
+            .package(url: "https://gitee.com/my_mirrors/Swift_Atomics.git", .branch("master")),
             // For Example
             .package(url: "https://github.com/Guang1234567/Swift_Express.git", .branch("base_on_swift_nio2"))
         ],
