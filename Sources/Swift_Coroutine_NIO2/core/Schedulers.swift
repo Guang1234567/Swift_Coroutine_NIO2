@@ -97,7 +97,7 @@ struct DispatchQueueScheduler: CoroutineScheduler, Equatable {
     }
 
     static func ==(lhs: DispatchQueueScheduler, rhs: DispatchQueueScheduler) -> Bool {
-        if lhs._dispatchQueue != rhs._dispatchQueue {
+        if lhs._dispatchQueue !== rhs._dispatchQueue {
             return false
         }
         if lhs._qos != rhs._qos {
