@@ -17,12 +17,12 @@ let package = Package(
         dependencies: [
             // Dependencies declare other packages that this package depends on.
             // .package(url: /* package url */, from: "1.0.0"),
-            .package(url: "https://github.com/apple/swift-nio.git", from: "2.0.0"),
-            .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "5.0.0"),
-            .package(url: "https://github.com/Guang1234567/Swift_Boost_Context.git", .branch("master")),
-            .package(url: "https://github.com/Guang1234567/Swift_Atomics.git", .branch("master")),
+            .package(url: "https://hub.fastgit.org/apple/swift-nio.git", from: "2.0.0"),
+            .package(url: "https://hub.fastgit.org/ReactiveX/RxSwift.git", from: "5.0.0"),
+            .package(url: "https://hub.fastgit.org/Guang1234567/Swift_Boost_Context.git", .branch("master")),
+            .package(url: "https://hub.fastgit.org/Guang1234567/Swift_Atomics.git", .branch("master")),
             // For Example
-            .package(url: "https://github.com/Guang1234567/Swift_Express.git", .branch("base_on_swift_nio2"))
+            .package(url: "https://hub.fastgit.org/Guang1234567/Swift_Express.git", .branch("base_on_swift_nio2"))
         ],
         targets: [
             // Targets are the basic building blocks of a package. A target can define a module or a test suite.

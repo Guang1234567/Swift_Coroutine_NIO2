@@ -3,7 +3,6 @@ import NIO
 import Swift_Boost_Context
 import SwiftAtomics
 import RxSwift
-import RxCocoa
 import RxBlocking
 
 public enum CoroutineState: Int {
@@ -78,9 +77,9 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
 
     let _name: String
 
-    var _originCtx: BoostContext!
+    var _originCtx: FN_YIELD<Void, CoroutineTransfer<T>>!
 
-    var _yieldCtx: BoostContext?
+    var _yieldCtx: FN_YIELD<CoroutineTransfer<T>, Void>!
 
     var _eventLoop: EventLoop
 
@@ -103,9 +102,9 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
     }
 
     deinit {
-        _originCtx = nil
         _yieldCtx = nil
-        //print("CoroutineImpl deinit : _name = \(_name)")
+        _originCtx = nil
+        print("CoroutineImpl deinit : _name = \(_name)")
     }
 
     init(
@@ -116,7 +115,6 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
     ) {
         _name = name
         _onStateChanged = AsyncSubject()
-        _yieldCtx = nil
         _eventLoop = eventLoop
         _scheduler = scheduler
         _task = task
@@ -124,21 +122,10 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
         _currentState.initialize(CoroutineState.INITED.rawValue)
 
         // issue: memory leak!
-        //self.originCtx = makeBoostContext(self.coScopeFn)
+        //originCtx = makeBoostContext(self.coScopeFn)
 
-        _originCtx = makeBoostContext { [unowned self] (fromCtx: BoostContext, data: Void) -> Void in
-            //print("\(self)  coScopeFn  :  \(fromCtx)  ---->  \(_bctx!)")
-            self._currentState.CAS(current: CoroutineState.INITED.rawValue, future: CoroutineState.STARTED.rawValue)
-            self.triggerStateChangedEvent(.STARTED)
-
-            self._yieldCtx = fromCtx
-            let result: Result<T, Error> = Result { [unowned self] in
-                try self._task(self)
-            }
-
-            //print("\(self)  coScopeFn  :  \(_fromCtx ?? fromCtx)  <----  ")
-            let _: BoostTransfer<Void> = (self._yieldCtx ?? fromCtx).jump(data: CoroutineTransfer.EXIT(result))
-            //print("Never jump back to here !!!")
+        _originCtx = makeBoostContext { [unowned self] (data: Void, yieldFn: @escaping FN_YIELD<CoroutineTransfer<T>, Void>) -> CoroutineTransfer<T> in
+            return self.coScopeFn(data, yieldFn)
         }
     }
 
@@ -149,42 +136,55 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
         }
     }
 
+    @inline(__always)
+    func coScopeFn(_ data: Void, _ yieldFn: @escaping FN_YIELD<CoroutineTransfer<T>, Void>) -> CoroutineTransfer<T> {
+        self._yieldCtx = yieldFn
+
+        self._currentState.CAS(current: CoroutineState.INITED.rawValue, future: CoroutineState.STARTED.rawValue)
+        self.triggerStateChangedEvent(.STARTED)
+
+        let result: Result<T, Error> = Result { [unowned self] in
+            try self._task(self)
+        }
+
+        return CoroutineTransfer.EXIT(result)
+    }
+
     func start() -> Void {
-        let bctx: BoostContext = _originCtx
+        let bctx: FN_YIELD<Void, CoroutineTransfer<T>> = _originCtx
         _scheduler.execute(self.makeResumer(bctx))
     }
 
-    func resume(_ bctx: BoostContext, ctf: CoroutineTransfer<T>) -> Void {
+    func resume(_ yield: @escaping FN_YIELD<Void, CoroutineTransfer<T>>, ctf: CoroutineTransfer<T>) -> Void {
         switch ctf {
-            case .YIELD:
-                _scheduler.execute(self.makeResumer(bctx))
-                triggerStateChangedEvent(.YIELDED)
-            case .YIELD_UNTIL(let onJumpBack):
-                onJumpBack.subscribe(onCompleted: { [unowned self] in
-                              //print("\(self)  --  YIELD_UNTIL2")
-                              self._scheduler.execute(self.makeResumer(bctx))
-                          })
-                          .disposed(by: _disposeBag)
-                triggerStateChangedEvent(.YIELDED)
-            case .DELAY(let timeInterval):
-                _scheduler.scheduleTask(deadline: .now() + timeInterval, self.makeResumer(bctx))
-                triggerStateChangedEvent(.YIELDED)
-            case .CONTINUE_ON_SCHEDULER(let scheduler):
-                _scheduler = scheduler
-                scheduler.execute(self.makeResumer(bctx))
-                triggerStateChangedEvent(.YIELDED)
-            case .EXIT(let result):
-                _currentState.store(CoroutineState.EXITED.rawValue)
-                triggerStateChangedEvent(.EXITED)
+        case .YIELD:
+            _scheduler.execute(self.makeResumer(yield))
+            triggerStateChangedEvent(.YIELDED)
+        case .YIELD_UNTIL(let onJumpBack):
+            onJumpBack.subscribe(onCompleted: { [unowned self] in
+                        //print("\(self)  --  YIELD_UNTIL2")
+                        self._scheduler.execute(self.makeResumer(yield))
+                    })
+                    .disposed(by: _disposeBag)
+            triggerStateChangedEvent(.YIELDED)
+        case .DELAY(let timeInterval):
+            _scheduler.scheduleTask(deadline: .now() + timeInterval, self.makeResumer(yield))
+            triggerStateChangedEvent(.YIELDED)
+        case .CONTINUE_ON_SCHEDULER(let scheduler):
+            _scheduler = scheduler
+            scheduler.execute(self.makeResumer(yield))
+            triggerStateChangedEvent(.YIELDED)
+        case .EXIT(let result):
+            _currentState.store(CoroutineState.EXITED.rawValue)
+            triggerStateChangedEvent(.EXITED)
 
         }
     }
 
-    func makeResumer(_ bctx: BoostContext) -> CoroutineResumer {
+    func makeResumer(_ yield: @escaping FN_YIELD<Void, CoroutineTransfer<T>>) -> CoroutineResumer {
         return { /*[unowned self] in*/
-            let btf: BoostTransfer<CoroutineTransfer<T>> = bctx.jump(data: ())
-            let coTransfer: CoroutineTransfer<T> = btf.data
-            return self.resume(btf.fromContext, ctf: coTransfer)
+            let coTransfer: CoroutineTransfer<T> = yield(())
+            return self.resume(yield, ctf: coTransfer)
         }
     }
 
@@ -245,7 +245,7 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
         // not in current coroutine scope
         // equals `func isInsideCoroutine() -> Bool`
         // ---------------
-        guard let yieldCtx = _yieldCtx else {
+        if _yieldCtx == nil {
             throw CoroutineError.calledOutsideCoroutine(reason: "Call `yield()` outside Coroutine")
         }
 
@@ -253,9 +253,7 @@ class CoroutineImpl<T>: Coroutine, CustomDebugStringConvertible, CustomStringCon
         // ---------------
         _currentState.store(CoroutineState.YIELDED.rawValue)
         //print("\(self)  _yield  :  \(fromCtx)  <----  \(Thread.current)")
-        let btf: BoostTransfer<Void> = yieldCtx.jump(data: ctf)
-        // update `_fromCtx` when restart
-        _yieldCtx = btf.fromContext
+        let _: Void = _yieldCtx(ctf)
         _currentState.store(CoroutineState.RESTARTED.rawValue)
         triggerStateChangedEvent(.RESTARTED)
         //print("\(self)  _yield  :  \(btf.fromContext)  ---->  \(Thread.current)")
