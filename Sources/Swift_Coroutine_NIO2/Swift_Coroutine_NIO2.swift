@@ -3,7 +3,6 @@ import NIO
 import Swift_Boost_Context
 import SwiftAtomics
 import RxSwift
-import RxCocoa
 import RxBlocking
 
 struct Swift_Coroutine_NIO2 {

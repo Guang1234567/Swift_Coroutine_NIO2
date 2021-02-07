@@ -17,8 +17,8 @@ let package = Package(
         dependencies: [
             // Dependencies declare other packages that this package depends on.
             // .package(url: /* package url */, from: "1.0.0"),
-            .package(url: "https://hub.fastgit.org/apple/swift-nio.git", from: "2.0.0"),
-            .package(url: "https://hub.fastgit.org/ReactiveX/RxSwift.git", from: "5.0.0"),
+            .package(url: "https://hub.fastgit.org/Guang1234567/swift-nio.git", .branch("release_2.25.1")),
+            .package(url: "https://hub.fastgit.org/Guang1234567/RxSwift.git", .branch("5.1.1_patch_support_android")),
             .package(url: "https://hub.fastgit.org/Guang1234567/Swift_Boost_Context.git", .branch("master")),
             .package(url: "https://hub.fastgit.org/Guang1234567/Swift_Atomics.git", .branch("master")),
             // For Example
@@ -35,7 +35,6 @@ let package = Package(
                         "Swift_Atomics",
                         "RxSwift",
                         .product(name: "RxRelay", package: "RxSwift"),
-                        .product(name: "RxCocoa", package: "RxSwift"),
                         .product(name: "RxBlocking", package: "RxSwift")
                     ]
             ),

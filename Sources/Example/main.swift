@@ -29,9 +29,9 @@ app.get("/hello") { req, res, _ in
         print("workflow - before")
 
         print("coDelay - start \(Thread.current)")
-        let start = CFAbsoluteTimeGetCurrent()
+        let start = Date.timeIntervalSinceReferenceDate
         try co.delay(.milliseconds(2000))
-        let end = CFAbsoluteTimeGetCurrent()
+        let end = Date.timeIntervalSinceReferenceDate
         print("coDelay - end \(Thread.current)  in \((end - start) * 1000) ms")
 
         print("co.delay - Thread.current - \(Thread.current)")
