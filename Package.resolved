@@ -11,15 +11,6 @@
         }
       },
       {
-        "package": "swift-nio",
-        "repositoryURL": "https://hub.fastgit.org/Guang1234567/swift-nio.git",
-        "state": {
-          "branch": "release_2.25.1",
-          "revision": "c25b378161d99222d085b81f3a80154795faf3bc",
-          "version": null
-        }
-      },
-      {
         "package": "Swift_Atomics",
         "repositoryURL": "https://hub.fastgit.org/Guang1234567/Swift_Atomics.git",
         "state": {
@@ -42,7 +33,7 @@
         "repositoryURL": "https://hub.fastgit.org/Guang1234567/Swift_Express.git",
         "state": {
           "branch": "base_on_swift_nio2",
-          "revision": "c65e0ce177bf16d48315ceac672dbb788412a60b",
+          "revision": "1c8cb1e672b34108ea28976309b045b007cc0b21",
           "version": null
         }
       }
